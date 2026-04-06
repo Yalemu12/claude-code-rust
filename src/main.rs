@@ -28,59 +28,75 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let client = Client::with_config(config);
 
-    #[allow(unused_variables)]
-    let response: Value = client
-        .chat()
-        .create_byot(json!({
-            "messages": [
-                {
-                    "role": "user",
-                    "content": args.prompt
-                }
-            ],
-            "model": "anthropic/claude-haiku-4.5",
-            "tools": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "Read",
-                        "description": "Read and return the contents of a file",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "file_path": {
-                                    "type": "string",
-                                    "description": "the path to the file to read"
-                                }
-                            },
-                            "required": ["file_path"]
+    let tools = json!([
+        {
+            "type": "function",
+            "function": {
+                "name": "Read",
+                "description": "Read and return the contents of a file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "the path to the file to read"
                         }
-                    }
+                    },
+                    "required": ["file_path"]
                 }
-            ]
-        }))
-        .await?;
+            }
+        }
+    ]);
 
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    eprintln!("Logs from your program will appear here!");
+    let mut messages = vec![
+        json!({
+            "role": "user",
+            "content": args.prompt
+        })
+    ];
 
-    //TODO: Uncomment the lines below to pass the first stage
-    let message = &response["choices"][0]["message"];
-    
-    if let Some(tool_calls) = message["tool_calls"].as_array() {
-        let tool_call = &tool_calls[0];
-        let name = tool_call["function"]["name"].as_str().unwrap();
-        let arguments: Value = 
-            serde_json::from_str(tool_call["function"]["arguments"].as_str().unwrap())?;
+    loop {
+        let response: Value = client
+            .chat()
+            .create_byot(json!({
+                "model": "anthropic/claude-haiku-4.5",
+                "messages": messages,
+                "tools": tools
+            }))
+            .await?;
 
-        if name == "Read" {
-            let file_path = arguments["file_path"].as_str().unwrap();
-            let contents = std::fs::read_to_string(file_path)?;
-            print!("{}", contents);
-        }    
-    } else if let Some(content) = message["content"].as_str() {  
+        let message = response["choices"][0]["message"].clone();
 
-        println!("{}", content);
+        messages.push(message.clone());
+
+        let tool_calls = message["tool_calls"].as_array();
+
+        if tool_calls.is_none() || tool_calls.unwrap().is_empty() {
+            if let Some(content) = message["content"].as_str() {
+                println!("{}", content);
+            }
+            break;
+        }
+
+        for tool_call in tool_calls.unwrap() {
+            let name = tool_call["function"]["name"].as_str().unwrap();
+            let arguments: Value =
+                serde_json::from_str(tool_call["function"]["arguments"].as_str().unwrap())?;
+            let tool_call_id = tool_call["id"].as_str().unwrap();
+
+            let result = if name == "Read" {
+                let file_path = arguments["file_path"].as_str().unwrap();
+                std::fs::read_to_string(file_path).unwrap_or_else(|e| e.to_string())
+            } else {
+                format!("Unknown tool: {}", name)
+            };
+
+            messages.push(json!({
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": result
+            }));
+        }
     }
 
     Ok(())
