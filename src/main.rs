@@ -45,6 +45,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "required": ["file_path"]
                 }
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "Write",
+                "description": "Write content to a file",
+                "parameters": {
+                    "type": "object",
+                    "required": ["file_path", "content"],
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "The path of the file to write to"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The content to write to the file"
+                        }
+                    }
+                }
+            }
         }
     ]);
 
@@ -87,6 +108,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let result = if name == "Read" {
                 let file_path = arguments["file_path"].as_str().unwrap();
                 std::fs::read_to_string(file_path).unwrap_or_else(|e| e.to_string())
+            } else if name == "Write" {
+                let file_path = arguments["file_path"].as_str().unwrap();
+                let content = arguments["content"].as_str().unwrap();
+                match std::fs::write(file_path, content) {
+                    Ok(_) => format!("Successfully wrote to {}", file_path),
+                    Err(e) => e.to_string(),
+                }
             } else {
                 format!("Unknown tool: {}", name)
             };
