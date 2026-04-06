@@ -66,6 +66,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "Bash",
+                "description": "Execute a shell command",
+                "parameters": {
+                    "type": "object",
+                    "required": ["command"],
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The command to execute"
+                        }
+                    }
+                }
+            }
         }
     ]);
 
@@ -113,6 +130,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let content = arguments["content"].as_str().unwrap();
                 match std::fs::write(file_path, content) {
                     Ok(_) => format!("Successfully wrote to {}", file_path),
+                    Err(e) => e.to_string(),
+                }
+            } else if name == "Bash" {
+                let command = arguments["command"].as_str().unwrap();
+                match process::Command::new("sh")
+                    .arg("-c")
+                    .arg(command)
+                    .output()
+                {
+                    Ok(output) => {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        format!("{}{}", stdout, stderr)
+                    }
                     Err(e) => e.to_string(),
                 }
             } else {
