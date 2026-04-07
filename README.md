@@ -1,9 +1,9 @@
-# Claude Code — Build Your Own AI Coding Assistant
+Built Your Own AI Coding Assistant
 
-[![progress-banner](https://backend.codecrafters.io/progress/claude-code/a10546a0-5904-4596-be36-5a4b231f956d)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
-A command-line AI coding assistant built in Rust as part of the
-[CodeCrafters "Build Your Own Claude Code" Challenge](https://codecrafters.io/challenges/claude-code).
+
+A command-line AI coding assistant built in Rust.
+
 It connects to an LLM via OpenRouter, sends user prompts, and autonomously
 executes tools (read files, write files, run shell commands) in an agent loop
 until the task is complete.
